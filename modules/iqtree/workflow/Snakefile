@@ -1,0 +1,104 @@
+"""IQ-Tree analysis
+
+Performs a maximum likelihood analysis using IQ-Tree.
+
+Inputs:
+    seeds : Seeds file
+    fasta : Fasta files
+
+Params:
+    outgroup_fasta (str): Filename of the outgroup fasta file
+    iqtree:
+        nt (str): Number of cores to use
+        m (str): Model of evolution
+        ninit (int): Number of initial parsimony trees
+        me (real): Log-likelihood epsilon for final model parameter estimation
+        b (int): Number of bootstrap replicates
+        flags (str): Additional flags to pass to iqtree
+"""
+configfile: "config/config.yaml"
+
+import os
+
+outdir = config["output_namespace"]
+
+if config["input_namespace"]["seeds"] != "seeds":
+    checkpoint get_seeds:
+        input:
+            expand(
+                "results/{indir}/seeds.txt",
+                indir=config["input_namespace"]["seeds"],
+            )
+        output:
+            expand(
+                "results/{outdir}/seeds.txt",
+                outdir=outdir,
+            )
+        shell:
+            """
+            cp {input} {output}
+            """
+
+    def read_seeds_file(wildcards):
+        with open(checkpoints.get_seeds.get().output[0], "r") as file:
+            seeds = file.read().splitlines()
+            return expand(
+                "results/{outdir}/s{key}/ml_tree.treefile",
+                outdir=outdir,
+                key=seeds,
+            )
+
+    rule target:
+        input:
+            read_seeds_file
+
+rule add_outgroup:
+    input:
+        msa_fasta = expand(
+            "results/{indir}/s{{key}}/nextalign.aligned.fasta",
+            indir=config["input_namespace"]["fasta"],
+        ),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/aligned.outgroup_added.fasta",
+            outdir=outdir,
+        )
+    params:
+        outgroup_fasta = config["params"]["outgroup_fasta"]
+    shell:
+        """
+        cat {params.outgroup_fasta} {input.msa_fasta} > {output}
+        """
+
+rule iqtree2:
+    input:
+        msa_fasta = expand(
+            "results/{outdir}/s{{key}}/aligned.outgroup_added.fasta",
+            outdir=outdir,
+        ),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/ml_tree.treefile",
+            outdir=outdir,
+        )
+    params:
+        nt = config["params"]["iqtree"]["nt"],
+        m = config["params"]["iqtree"]["m"],
+        ninit = config["params"]["iqtree"]["ninit"],
+        me = config["params"]["iqtree"]["me"],
+        b = config["params"]["iqtree"]["b"],
+        outdir = outdir,
+        key = lambda wc: wc.key,
+    conda:
+        "envs/iqtree2.yaml"
+    shell:
+        """
+        iqtree2 -s {input.msa_fasta} \
+            -nt {params.nt} \
+            -m {params.m} \
+            -ninit {params.ninit} \
+            -me {params.me} \
+            $(if [ {params.b} -gt 0 ]; then echo "-b {params.b}"; else echo ""; fi) \
+            --prefix ml_tree
+        mv ml_tree.* results/{params.outdir}/s{params.key}
+        """

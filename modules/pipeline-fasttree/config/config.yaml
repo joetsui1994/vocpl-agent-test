@@ -1,0 +1,108 @@
+input_namespace:
+  vocpl_dta$seeds: seeds
+  vocpl_fasttree$seeds: _seeds
+  vocpl_nextalign$seeds: _seeds
+  vocpl_subsample_alignment$: in
+  vocpl_treetime$seeds: _seeds
+output_namespace: vocpl_dta
+vocpl_dta:
+  config:
+    input_namespace:
+      seeds: seeds
+      treetime: vocpl_treetime
+    output_namespace: vocpl_dta
+    params:
+      master_metadata: resources/beta.metadata.tsv
+  name: (vocpl) dta
+  snakefile:
+    args:
+    - kraemer-lab/vneyard
+    function: github
+    kwargs:
+      branch: main
+      path: workflows/vocpl/modules/dta/workflow/Snakefile
+  type: module
+vocpl_fasttree:
+  config:
+    input_namespace:
+      fasta: vocpl_nextalign
+      seeds: _seeds
+    output_namespace: vocpl_fasttree
+    params:
+      fasttree:
+        boot: 0
+        flags: ''
+        gtr: true
+      method: fasttree
+      outgroup_fasta: '/Users/user/Documents/work/GRAPEVNE/vneyard/workflows/vocpl/sources/data/wuhan.fasta'
+  name: (vocpl) fasttree
+  snakefile:
+    args:
+    - kraemer-lab/vneyard
+    function: github
+    kwargs:
+      branch: main
+      path: workflows/vocpl/modules/fasttree/workflow/Snakefile
+  type: module
+vocpl_nextalign:
+  config:
+    input_namespace:
+      fasta: vocpl_subsample_alignment
+      seeds: _seeds
+    output_namespace: vocpl_nextalign
+    params:
+      genemap: resources/genemap.gff
+      genes: E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S
+      reference: resources/reference.fasta
+      subsample_prealign_fasta: subsample_aln.fasta
+  name: (vocpl) nextalign
+  snakefile:
+    args:
+    - kraemer-lab/vneyard
+    function: github
+    kwargs:
+      branch: main
+      path: workflows/vocpl/modules/nextalign/workflow/Snakefile
+  type: module
+vocpl_subsample_alignment:
+  config:
+    input_namespace: in
+    output_namespace: vocpl_subsample_alignment
+    params:
+      master_fasta: beta.fasta
+      master_metadata: resources/beta.metadata.tsv
+      n_random: 300
+  name: (vocpl) subsample_alignment
+  snakefile:
+    args:
+    - kraemer-lab/vneyard
+    function: github
+    kwargs:
+      branch: main
+      path: workflows/vocpl/modules/subsample_alignment/workflow/Snakefile
+  type: module
+vocpl_treetime:
+  config:
+    input_namespace:
+      ml_tree: vocpl_fasttree
+      seeds: _seeds
+    output_namespace: vocpl_treetime
+    params:
+      master_metadata: resources/beta.metadata.tsv
+      treetime:
+        init:
+          clock_rate: 0.0008
+          clock_std_dev: 2.0e-05
+          reroot: oldest
+        iter:
+          max_iter: 10
+          max_outliers: 100
+  name: (vocpl) treetime
+  snakefile:
+    args:
+    - kraemer-lab/vneyard
+    function: github
+    kwargs:
+      branch: main
+      path: workflows/vocpl/modules/treetime/workflow/Snakefile
+  type: module

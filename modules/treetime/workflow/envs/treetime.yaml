@@ -1,0 +1,10 @@
+channels:
+  - bioconda
+  - free
+  - conda-forge
+dependencies:
+  - python=3
+  - pip
+  - gotree
+  - pip:
+    - phylo-treetime 

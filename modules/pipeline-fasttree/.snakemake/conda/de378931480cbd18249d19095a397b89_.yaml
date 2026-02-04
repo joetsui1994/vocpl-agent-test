@@ -1,0 +1,9 @@
+channels:
+  - bioconda
+dependencies:
+  - python==3.7
+  - gotree
+  - pip
+  - pip:
+    - phylo-treetime 
+    - baltic

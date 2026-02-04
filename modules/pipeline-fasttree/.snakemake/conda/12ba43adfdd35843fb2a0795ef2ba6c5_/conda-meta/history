@@ -1,0 +1,6 @@
+==> 2026-02-04 22:57:35 <==
+# cmd: /Users/user/miniconda3/bin/conda-env create --quiet --file /Users/user/Documents/work/GRAPEVNE/vneyard/workflows/vocpl/modules/pipeline-fasttree/.snakemake/conda/12ba43adfdd35843fb2a0795ef2ba6c5_.yaml --prefix /Users/user/Documents/work/GRAPEVNE/vneyard/workflows/vocpl/modules/pipeline-fasttree/.snakemake/conda/12ba43adfdd35843fb2a0795ef2ba6c5_
+# conda version: 23.11.0
++bioconda/osx-arm64::fasttree-2.2.0-hd34ca47_1
++conda-forge/osx-arm64::llvm-openmp-21.1.8-h4a912ad_0
+# update specs: ['fasttree']

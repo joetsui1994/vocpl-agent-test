@@ -1,0 +1,11 @@
+# SARS-CoV-2 DTA Pipeline Python Dependencies
+
+# Core dependencies
+biopython>=1.80
+pandas>=1.5.0
+
+# For DTA analysis
+baltic>=0.2.0
+
+# TreeTime (optional, can also install via conda)
+# phylo-treetime>=0.11.0

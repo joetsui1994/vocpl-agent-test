@@ -1,0 +1,74 @@
+"""Complete pipeline implementing the VOCPL pipeline.
+
+This pipeline is a complete implementation of the VOCPL pipeline. It utilises FastTree for tree building.
+
+See respective modules for parameter descriptions.
+"""
+configfile: "config/config.yaml"
+
+# Read seeds from file to determine targets
+def get_seeds():
+    with open("results/seeds/seeds.txt", "r") as f:
+        return [line.strip() for line in f if line.strip()]
+
+rule all:
+    input:
+        expand(
+            "results/vocpl_dta/s{seed}/state_changes.tsv",
+            seed=get_seeds()
+        )
+
+module vocpl_subsample_alignment:
+    snakefile:
+        eval(
+            f'{config["vocpl_subsample_alignment"]["snakefile"]["function"]}'
+            '(*config["vocpl_subsample_alignment"]["snakefile"]["args"],'
+            '**config["vocpl_subsample_alignment"]["snakefile"]["kwargs"])'
+        )
+    config:
+        config["vocpl_subsample_alignment"]["config"]
+use rule * from vocpl_subsample_alignment as vocpl_subsample_alignment_*
+
+module vocpl_nextalign:
+    snakefile:
+        eval(
+            f'{config["vocpl_nextalign"]["snakefile"]["function"]}'
+            '(*config["vocpl_nextalign"]["snakefile"]["args"],'
+            '**config["vocpl_nextalign"]["snakefile"]["kwargs"])'
+        )
+    config:
+        config["vocpl_nextalign"]["config"]
+use rule * from vocpl_nextalign as vocpl_nextalign_*
+
+module vocpl_fasttree:
+    snakefile:
+        eval(
+            f'{config["vocpl_fasttree"]["snakefile"]["function"]}'
+            '(*config["vocpl_fasttree"]["snakefile"]["args"],'
+            '**config["vocpl_fasttree"]["snakefile"]["kwargs"])'
+        )
+    config:
+        config["vocpl_fasttree"]["config"]
+use rule * from vocpl_fasttree as vocpl_fasttree_*
+
+module vocpl_treetime:
+    snakefile:
+        eval(
+            f'{config["vocpl_treetime"]["snakefile"]["function"]}'
+            '(*config["vocpl_treetime"]["snakefile"]["args"],'
+            '**config["vocpl_treetime"]["snakefile"]["kwargs"])'
+        )
+    config:
+        config["vocpl_treetime"]["config"]
+use rule * from vocpl_treetime as vocpl_treetime_*
+
+module vocpl_dta:
+    snakefile:
+        eval(
+            f'{config["vocpl_dta"]["snakefile"]["function"]}'
+            '(*config["vocpl_dta"]["snakefile"]["args"],'
+            '**config["vocpl_dta"]["snakefile"]["kwargs"])'
+        )
+    config:
+        config["vocpl_dta"]["config"]
+use rule * from vocpl_dta as vocpl_dta_*

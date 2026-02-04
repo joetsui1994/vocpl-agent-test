@@ -1,0 +1,174 @@
+"""TreeTime
+
+Perfors time-resolved phylogenetic analysis using TreeTime.
+
+Inputs:
+    seeds: "seeds"
+    ml_tree: "ml_tree"
+
+Params:
+    master_metadata (str): Filename of the master metadata file
+    treetime: TreeTime specific parameters
+        init: Initialisation parameters
+            clock_rate (real): Evolutionary clock rate
+            clock_std_dev (real): Evolutionary clock rate (std deviation)
+            reroot (str): Method to find the best root in the tree
+        iter: Iteration parameters
+            max_iter (int): Maximum number of iterations
+            max_outliers (int): Maximum number of outliers
+"""
+configfile: "config/config.yaml"
+from snakemake.remote import AUTO
+
+indir = config["input_namespace"]["ml_tree"]
+outdir = config["output_namespace"]
+
+if config["input_namespace"]["seeds"] != "seeds":
+    checkpoint get_seeds:
+        input:
+            expand(
+                "results/{indir}/seeds.txt",
+                indir=config["input_namespace"]["seeds"],
+            )
+        output:
+            expand(
+                "results/{outdir}/seeds.txt",
+                outdir=outdir,
+            )
+        shell:
+            """
+            cp {input} {output}
+            """
+
+    def read_seeds_file(wildcards):
+        with open(checkpoints.get_seeds.get().output[0], "r") as file:
+            seeds = file.read().splitlines()
+            return expand(
+                "results/{outdir}/s{key}/TreeTime_iter/ml_treetime.final.nwk",
+                outdir=outdir,
+                key=seeds,
+            )
+
+    rule target:
+        input:
+            read_seeds_file
+
+rule treetime_init:
+    input:
+        msa_fasta = expand(
+            "results/{indir}/s{{key}}/aligned.outgroup_added.fasta",
+            indir=indir,
+        ),
+        ml_tree_nwk = expand(
+            "results/{indir}/s{{key}}/ml_tree.treefile",
+            indir=indir,
+        ),
+        master_metadata = AUTO.remote(expand(
+            srcdir("../{master_metadata}"),
+            master_metadata=config["params"]["master_metadata"]
+        )),
+    output:
+        outliers = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init/outliers.tsv",
+            outdir=outdir,
+        ),
+        iter0nwk = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init/ml_treetime.iter0.nwk",
+            outdir=outdir,
+        ),
+        log = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init/log.txt",
+            outdir=outdir,
+        ),
+    conda:
+        "envs/treetime.yaml"
+    params:
+        clock_rate = config["params"]["treetime"]["init"]["clock_rate"],
+        clock_std_dev = config["params"]["treetime"]["init"]["clock_std_dev"],
+        reroot = config["params"]["treetime"]["init"]["reroot"],
+        outdir = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init",
+            outdir=outdir),
+    shell:
+        """
+        treetime \
+            --aln {input.msa_fasta} \
+            --tree {input.ml_tree_nwk} \
+            --dates {input.master_metadata} \
+            --clock-rate {params.clock_rate} \
+            --clock-std-dev {params.clock_std_dev} \
+            $(if [ -z {params.reroot} ]; then echo "--reroot {params.reroot}"; else echo ""; fi) \
+            --outdir {params.outdir} \
+            > {output.log}
+        awk -F '\t' '$3=="--" {{ print $1 }}' {params.outdir}/dates.tsv > {output.outliers}
+        gotree prune -f {output.outliers} -i {input.ml_tree_nwk} --format newick > {output.iter0nwk}
+        """
+
+rule treetime_iter:
+    input:
+        msa_fasta = expand(
+            "results/{indir}/s{{key}}/aligned.outgroup_added.fasta",
+            indir=indir,
+        ),
+        master_metadata = AUTO.remote(expand(
+            srcdir("../{master_metadata}"),
+            master_metadata=config["params"]["master_metadata"]
+        )),
+        outliers = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init/outliers.tsv",
+            outdir=outdir,
+        ),
+        ml_treetime_iter0 = expand(
+            "results/{outdir}/s{{key}}/TreeTime_init/ml_treetime.iter0.nwk",
+            outdir=outdir,
+        ),
+    output:
+        ml_treetime_final = expand(
+            "results/{outdir}/s{{key}}/TreeTime_iter/ml_treetime.final.nwk",
+            outdir=outdir,
+        ),
+        all_outliers = expand(
+            "results/{outdir}/s{{key}}/TreeTime_iter/all_outliers.tsv",
+            outdir=outdir,
+        ),
+    conda:
+        "envs/treetime.yaml"
+    params:
+        max_outliers = config["params"]["treetime"]["iter"]["max_outliers"],
+        max_iter = config["params"]["treetime"]["iter"]["max_iter"],
+        clock_rate = config["params"]["treetime"]["init"]["clock_rate"],
+        clock_std_dev = config["params"]["treetime"]["init"]["clock_std_dev"],
+        reroot = config["params"]["treetime"]["init"]["reroot"],
+        outdir = expand(
+            "results/{outdir}/s{{key}}/TreeTime_iter",
+            outdir=outdir),
+    shell:
+        """
+        i=0
+        curr_tree="{input.ml_treetime_iter0}"
+        outliers_n=$(wc -l {input.outliers} | awk '{{ print $1 }}')
+        cat {input.outliers} > {output.all_outliers}
+
+        while [[ $outliers_n -gt 0 && $outliers_n -lt {params.max_outliers} && $i -lt {params.max_iter} ]]
+        do
+            i=$((i+1))
+            treetime \
+                --aln {input.msa_fasta} \
+                --tree $curr_tree \
+                --dates {input.master_metadata} \
+                --clock-rate {params.clock_rate} \
+                --clock-std-dev {params.clock_std_dev} \
+                $(if [ -z {params.reroot} ]; then echo "--reroot {params.reroot}"; else echo ""; fi) \
+                --outdir "{params.outdir}/treetime_iter$i" \
+                > "log_iter\$i.txt"
+            
+            awk -F '\t' '$3=="--" {{ print $1 }}' "{params.outdir}/treetime_iter$i/dates.tsv" > "{params.outdir}/outliers_iter$i.tsv"
+            cat "{params.outdir}/outliers_iter$i.tsv" >> {output.all_outliers}
+            gotree prune -f "{params.outdir}/outliers_iter$i.tsv" -i $curr_tree --format newick > "{params.outdir}/ml_treetime.iter$i.nwk"
+
+            outliers_n=$(wc -l "{params.outdir}/outliers_iter$i.tsv" | awk '{{ print $1 }}')
+            curr_tree="{params.outdir}/ml_treetime.iter$i.nwk"
+        done
+
+        $(if [ $i -gt 0 ]; then mv "{params.outdir}/ml_treetime.iter$i.nwk" {output.ml_treetime_final}; else mv {input.ml_treetime_iter0} {output.ml_treetime_final}; fi)
+        """

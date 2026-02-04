@@ -1,0 +1,62 @@
+"""Subsample alignment
+
+Performs subsampling of the master alignment and metadata files.
+
+Params:
+    n_random (int): Number of random samples to take
+    master_fasta (str): Filename of the master fasta file
+    master_metadata (str): Filename of the master metadata file
+"""
+configfile: "config/config.yaml"
+from snakemake.remote import AUTO
+
+outdir = config["output_namespace"]
+
+rule random_subsample_ids_metadata:
+    input:
+        master_metadata = AUTO.remote(expand(
+            srcdir("../{master_metadata}"),
+            master_metadata=config["params"]["master_metadata"],
+        )),
+    output:
+        subsample_ids = expand(
+            "results/{outdir}/s{{key}}/subsample_ids.tsv",
+            outdir=outdir,
+        ),
+        subsample_metadata = expand(
+            "results/{outdir}/s{{key}}/subsample_metadata.tsv",
+            outdir=outdir,
+        ),
+    params:
+        n_random=config["params"]["n_random"],
+    conda:
+        "envs/conda.yaml"
+    shell:
+        """
+        head -n1 {input.master_metadata} > {output.subsample_metadata}
+        shuf -n {params.n_random} {input.master_metadata} >> {output.subsample_metadata}
+        tail -n +2 {output.subsample_metadata} | cut -f1 > {output.subsample_ids}
+        """
+
+rule subsample_alignment:
+    input:
+        subsample_ids = expand(
+            "results/{outdir}/s{{key}}/subsample_ids.tsv",
+            outdir=outdir,
+        ),
+        master_fasta = expand(
+            "results/{indir}/{master_fasta}",
+            indir=config["input_namespace"],
+            master_fasta=config["params"]["master_fasta"],
+        ),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/subsample_aln.fasta",
+            outdir=outdir,
+        ),
+    conda:
+        "envs/conda.yaml"
+    shell:
+        """
+        seqkit grep -n -f {input.subsample_ids} {input.master_fasta} > {output}
+        """

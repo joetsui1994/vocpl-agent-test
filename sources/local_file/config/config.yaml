@@ -1,0 +1,4 @@
+input_namespace: null
+output_namespace: "out"
+params:
+  file: "<Full path to local file>"

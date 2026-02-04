@@ -1,0 +1,6 @@
+input_namespace: in
+output_namespace: out
+params:
+  n_random: 50
+  master_fasta: beta.fasta
+  master_metadata: resources/beta.metadata.tsv

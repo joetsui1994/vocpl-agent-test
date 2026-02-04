@@ -1,0 +1,15 @@
+configfile: "config/config.yaml"
+
+# read seeds from file
+keys = [123456, 654321]
+
+# default target all seeds listed in the seeds file
+rule all:
+    input:
+        expand(
+            "results/{outdir}/s{key}/nextalign.aligned.fasta",
+            outdir=config["output_namespace"],
+            key=keys,
+        )
+
+include: "Snakefile"

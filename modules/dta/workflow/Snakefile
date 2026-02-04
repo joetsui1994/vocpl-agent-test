@@ -1,0 +1,129 @@
+"""Discrete Trait Analysis (DTA)
+
+Perform DTA on the ML tree from TreeTime.
+
+Params:
+  master_metadata (str): Path to the master metadata file
+"""
+configfile: "config/config.yaml"
+from snakemake.remote import AUTO
+
+outdir = config["output_namespace"]
+
+if config["input_namespace"]["seeds"] != "seeds":
+    checkpoint get_seeds:
+        input:
+            expand(
+                "results/{indir}/seeds.txt",
+                indir=config["input_namespace"]["seeds"],
+            )
+        output:
+            expand(
+                "results/{outdir}/seeds.txt",
+                outdir=outdir,
+            )
+        shell:
+            """
+            cp {input} {output}
+            """
+
+    def read_seeds_file(wildcards):
+        with open(checkpoints.get_seeds.get().output[0], "r") as file:
+            seeds = file.read().splitlines()
+            return expand(
+                "results/{outdir}/s{key}/state_changes.tsv",
+                outdir=outdir,
+                key=seeds,
+            )
+
+    rule target:
+        input:
+            read_seeds_file
+
+rule treetime_dta:
+    input:
+        ml_treetime_final = expand(
+            "results/{indir}/s{{key}}/TreeTime_iter/ml_treetime.final.nwk",
+            indir=config["input_namespace"]["treetime"],
+        ),
+        master_metadata = AUTO.remote(expand(
+            srcdir("../{master_metadata}"),
+            master_metadata=config["params"]["master_metadata"]
+        )),
+    output:
+        annotated_tree_nexus = expand(
+            "results/{outdir}/s{{key}}/annotated_tree.nexus",
+            outdir=outdir,
+        ),
+    params:
+        outdir = directory(expand(
+            "results/{outdir}/s{{key}}",
+            outdir=outdir,
+        )),
+    conda:
+        "envs/conda.yaml"
+    shell:
+        """
+        treetime mugration \
+            --tree {input.ml_treetime_final} \
+            --states {input.master_metadata} \
+            --attribute country \
+            --outdir {params.outdir}
+        """
+
+rule extract_states:
+    input:
+        #dta_dir = rules.treetime_dta.output.outdir,
+        annotated_tree_nexus = expand(
+            "results/{outdir}/s{{key}}/annotated_tree.nexus",
+            outdir=outdir,
+        ),
+        master_metadata = AUTO.remote(expand(
+            srcdir("../{master_metadata}"),
+            master_metadata=config["params"]["master_metadata"]
+        )),
+        sort_dates_py = AUTO.remote(expand(
+            srcdir("../scripts/sort_dates.py"),
+            outdir = outdir,
+        )),
+        extract_dta_py = AUTO.remote(expand(
+            srcdir("../scripts/extract_dta.py"),
+            outdir = outdir,
+        )),
+    output:
+        state_changes = expand(
+            "results/{outdir}/s{{key}}/state_changes.tsv",
+            outdir = outdir,
+        ),
+        final_tips = expand(
+            "results/{outdir}/s{{key}}/final_tips.tsv",
+            outdir=outdir,
+        ),
+        final_metadata = expand(
+            "results/{outdir}/s{{key}}/final_metadata.tsv",
+            outdir = outdir,
+        ),
+    params:
+        outdir = expand(
+            "results/{outdir}/s{{key}}",
+            outdir = outdir,
+        ),
+        final_metadata_sorted = expand(
+            "results/{outdir}/s{{key}}/final_metadata.sorted.tsv",
+            outdir = outdir,
+        ),
+    conda:
+        "envs/conda.yaml"
+    shell:
+        """
+        gotree labels -i {input.annotated_tree_nexus} --format nexus --tips > {output.final_tips}
+        awk -F '\\t' -v OFS='\\t' 'NR==FNR {{ a[$1]; next }} FNR==1 || $1 in a {{ print $0 }}' {output.final_tips} {input.master_metadata} > {output.final_metadata}
+        last_sample=$(python3 {input.sort_dates_py} \
+            --infile {output.final_metadata} \
+            --outfile {params.final_metadata_sorted} \
+            --latest)
+        python3 {input.extract_dta_py} \
+            --infile {input.annotated_tree_nexus} \
+            --outfile {output.state_changes} \
+            --time $last_sample
+        """

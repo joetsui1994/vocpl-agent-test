@@ -1,0 +1,85 @@
+"""Nextalign
+
+Perform Nextalign on subsampled prealign fasta files.
+
+Inputs:
+  seeds : Seeds location
+  fasta : Fasta location
+
+Params:
+  reference (str): Filename of the reference sequence
+  genemap (str): Filename of the gene map
+  genes (str): Comma-separated list of gene names
+  subsample_prealign_fasta (str): Filename of the subsampled prealign fasta
+"""
+configfile: "config/config.yaml"
+from snakemake.remote import AUTO
+
+from pathlib import Path
+
+outdir = config["output_namespace"]
+
+if config["input_namespace"]["seeds"] != "seeds":
+    checkpoint get_seeds:
+        input:
+            expand(
+                "results/{indir}/seeds.txt",
+                indir=config["input_namespace"]["seeds"],
+            )
+        output:
+            expand(
+                "results/{outdir}/seeds.txt",
+                outdir=outdir,
+            )
+        shell:
+            """
+            cp {input} {output}
+            """
+
+    def read_seeds_file(wildcards):
+        with open(checkpoints.get_seeds.get().output[0], "r") as file:
+            seeds = file.read().splitlines()
+            return expand(
+                "results/{outdir}/s{key}/nextalign.aligned.fasta",
+                outdir=outdir,
+                key=seeds,
+            )
+
+    rule target:
+        input:
+            read_seeds_file
+
+rule nextalign:
+    input:
+        prealign_fasta = expand(
+            "results/{indir}/s{{key}}/{infile}",
+            indir=config["input_namespace"]["fasta"],
+            infile=config["params"]["subsample_prealign_fasta"],
+        ),
+        reference = AUTO.remote(expand(
+            srcdir("../{ref}"),
+            ref=config["params"]["reference"],
+        )),
+        genemap = AUTO.remote(expand(
+            srcdir("../{genemap}"),
+            genemap=config["params"]["genemap"],
+        )),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/nextalign.aligned.fasta",
+            outdir=config["output_namespace"],
+        ),
+    params:
+        genes=config["params"]["genes"],
+        outdir = lambda wildcards, output: Path(output[0]).parent
+    conda:
+        "envs/conda.yaml"
+    shell:
+        """
+        nextalign run \
+            --input-ref={input.reference} \
+            --genemap={input.genemap} \
+            --genes={params.genes} \
+            --output-all={params.outdir} \
+            {input.prealign_fasta}
+        """

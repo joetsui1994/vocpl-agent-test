@@ -1,0 +1,6 @@
+input_namespace:
+  seeds: "seeds"
+  treetime: "treetime"
+output_namespace: "out"
+params:
+  master_metadata: "resources/beta.metadata.tsv"

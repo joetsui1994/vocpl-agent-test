@@ -1,0 +1,14 @@
+input_namespace:
+  seeds: "seeds"
+  ml_tree: "ml_tree"
+output_namespace: "out"
+params:
+  master_metadata: "resources/beta.metadata.tsv"
+  treetime:
+    init:
+      clock_rate: 0.0008
+      clock_std_dev: 0.00002
+      reroot: "oldest"
+    iter:
+      max_iter: 10
+      max_outliers: 100

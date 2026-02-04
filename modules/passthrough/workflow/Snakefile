@@ -1,0 +1,36 @@
+"""Passthrough module
+
+This module is used to copy the results of a previous run to the output directory.
+"""
+configfile: "config/config.yaml"
+import os
+
+outdir = config["output_namespace"]
+
+checkpoint passthrough:
+    input:
+        expand(
+            "results/{indir}",
+            indir=config["input_namespace"],
+        ),
+    output:
+        directory(expand(
+            "results/{outdir}",
+            outdir=outdir,
+        )),
+    shell:
+        """
+        cp -r {input} {output}
+        """
+
+def list_output(wildcards):
+    contents = []
+    root = checkpoints.passthrough.get().output[0]
+    for path, subdirs, files in os.walk(root):
+        for name in files:
+            contents.append(os.path.join(path, name))
+    return contents
+
+rule target:
+    input:
+        list_output

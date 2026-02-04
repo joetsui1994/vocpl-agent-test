@@ -1,0 +1,6 @@
+channels:
+  - bioconda
+  - free
+  - conda-forge
+dependencies:
+  - nextalign

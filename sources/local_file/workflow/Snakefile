@@ -1,0 +1,30 @@
+"""Copy a local file into the workflow
+
+Makes a copy of a local file and provides it as output.
+
+Tags: utility, copy, files
+
+Params:
+    file (string): Path to file to copy
+"""
+configfile: "config/config.yaml"
+import os
+import shutil
+
+params = config["params"]
+filepath, filename = os.path.split(os.path.abspath(params["file"]))
+
+rule provide_seeds:
+    input:
+        expand(
+            "{fullfile}",
+            fullfile=params["file"],
+        )
+    output:
+        expand(
+            "results/{outdir}/{filename}",
+            filename=filename,
+            outdir=config["output_namespace"],
+        )
+    run:
+        shutil.copy(input[0], output[0])

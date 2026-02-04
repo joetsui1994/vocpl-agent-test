@@ -1,0 +1,94 @@
+"""Perform FastTree analysis on multiple sequence alignments.
+
+Perform FastTree analysis on multiple sequence alignments.
+
+Inputs:
+    seeds : Seeds files
+    fasta : Multiple sequence alignments
+
+Params:
+    outgroup_fasta (str): Filename of the outgroup fasta file
+    fasttree:  FastTree-specific parameters
+        gtr (bool): Generalized time-reversible model
+        boot (int): Bootstrap samples
+        flags (str): Additional flags to pass to FastTree
+"""
+configfile: "config/config.yaml"
+
+import os
+
+outdir = config["output_namespace"]
+
+if config["input_namespace"]["seeds"] != "seeds":
+    checkpoint get_seeds:
+        input:
+            expand(
+                "results/{indir}/seeds.txt",
+                indir=config["input_namespace"]["seeds"],
+            )
+        output:
+            expand(
+                "results/{outdir}/seeds.txt",
+                outdir=outdir,
+            )
+        shell:
+            """
+            cp {input} {output}
+            """
+
+    def read_seeds_file(wildcards):
+        with open(checkpoints.get_seeds.get().output[0], "r") as file:
+            seeds = file.read().splitlines()
+            return expand(
+                "results/{outdir}/s{key}/ml_tree.treefile",
+                outdir=outdir,
+                key=seeds,
+            )
+
+    rule target:
+        input:
+            read_seeds_file
+
+rule add_outgroup:
+    input:
+        msa_fasta = expand(
+            "results/{indir}/s{{key}}/nextalign.aligned.fasta",
+            indir=config["input_namespace"]["fasta"],
+        ),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/aligned.outgroup_added.fasta",
+            outdir=outdir,
+        )
+    params:
+        outgroup_fasta = config["params"]["outgroup_fasta"]
+    shell:
+        """
+        cat {params.outgroup_fasta} {input.msa_fasta} > {output}
+        """
+
+rule fasttree:
+    input:
+        msa_fasta = expand(
+            "results/{outdir}/s{{key}}/aligned.outgroup_added.fasta",
+            outdir=outdir,
+        ),
+    output:
+        expand(
+            "results/{outdir}/s{{key}}/ml_tree.treefile",
+            outdir=outdir,
+        )
+    params:
+        gtr = config["params"]["fasttree"]["gtr"],
+        boot = config["params"]["fasttree"]["boot"],
+        flags = config["params"]["fasttree"]["flags"],
+    conda:
+        "envs/fasttree.yaml"
+    shell:
+        """
+        FastTree -nt \
+            $(if [ {params.gtr} == true ]; then echo "-gtr"; else echo ""; fi) \
+            -boot {params.boot} \
+            {params.flags} \
+            {input.msa_fasta} > {output}
+        """

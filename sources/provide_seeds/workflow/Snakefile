@@ -1,0 +1,19 @@
+"""Read a preconfigured seeds file
+
+For use in the `vocpl` (variants of concern) analysis available in the `kraemer-lab/vneyard` repository.
+"""
+configfile: "config/config.yaml"
+from snakemake.remote import AUTO
+
+rule provide_seeds:
+    input:
+        AUTO.remote(srcdir("../resources/seeds.txt"))
+    output:
+        expand(
+            "results/{outdir}/seeds.txt",
+            outdir=config["output_namespace"],
+        )
+    conda:
+        "envs/conda.yaml"
+    shell:
+        "cp {input} {output}"

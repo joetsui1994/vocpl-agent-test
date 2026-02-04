@@ -1,0 +1,9 @@
+input_namespace:
+  seeds: "seeds"
+  fasta: "fasta"
+output_namespace: "out"
+params:
+  reference: "resources/reference.fasta"
+  genemap: "resources/genemap.gff"
+  genes: "E,M,N,ORF1a,ORF1b,ORF3a,ORF6,ORF7a,ORF7b,ORF8,ORF9b,S"
+  subsample_prealign_fasta: "subsample_aln.fasta"

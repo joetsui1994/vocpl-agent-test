@@ -1,0 +1,10 @@
+input_namespace:
+  seeds: "seeds"
+  fasta: "fasta"
+output_namespace: "out"
+params:
+  outgroup_fasta: ""
+  fasttree:
+    gtr: true
+    boot: 0
+    flags: ""

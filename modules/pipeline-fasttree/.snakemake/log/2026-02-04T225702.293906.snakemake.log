@@ -1,0 +1,40 @@
+Building DAG of jobs...
+Your conda installation is not configured to use strict channel priorities. This is however crucial for having robust and correct environments (for details, see https://conda-forge.org/docs/user/tipsandtricks.html). Please consider to configure strict priorities by executing 'conda config --set channel_priority strict'.
+Creating conda environment https://raw.githubusercontent.com/kraemer-lab/vneyard/main/workflows/vocpl/modules/fasttree/workflow/envs/fasttree.yaml...
+Downloading and installing remote packages.
+Environment for https://raw.githubusercontent.com/kraemer-lab/vneyard/main/workflows/vocpl/modules/fasttree/workflow/envs/fasttree.yaml created (location: .snakemake/conda/12ba43adfdd35843fb2a0795ef2ba6c5_)
+Creating conda environment https://raw.githubusercontent.com/kraemer-lab/vneyard/main/workflows/vocpl/modules/dta/workflow/envs/conda.yaml...
+Downloading and installing remote packages.
+CreateCondaEnvironmentException:
+Could not create conda environment from /var/folders/q9/0h40wkyj4s79vh8zt8z0yssm0000gp/T/tmpzhai2jxs.yaml:
+Command:
+conda env create --quiet --file "/Users/user/Documents/work/GRAPEVNE/vneyard/workflows/vocpl/modules/pipeline-fasttree/.snakemake/conda/de378931480cbd18249d19095a397b89_.yaml" --prefix "/Users/user/Documents/work/GRAPEVNE/vneyard/workflows/vocpl/modules/pipeline-fasttree/.snakemake/conda/de378931480cbd18249d19095a397b89_"
+Output:
+Channels:
+ - bioconda
+ - conda-forge
+ - defaults
+Platform: osx-arm64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... failed
+
+PackagesNotFoundError: The following packages are not available from current channels:
+
+  - python==3.7
+
+Current channels:
+
+  - https://conda.anaconda.org/bioconda/osx-arm64
+  - https://conda.anaconda.org/conda-forge/osx-arm64
+  - https://repo.anaconda.com/pkgs/main/osx-arm64
+  - https://repo.anaconda.com/pkgs/r/osx-arm64
+
+To search for alternate channels that may provide the conda package you're
+looking for, navigate to
+
+    https://anaconda.org
+
+and use the search bar at the top of the page.
+
+
+
