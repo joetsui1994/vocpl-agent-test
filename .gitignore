@@ -15,7 +15,7 @@ __pycache__/
 .Python
 
 # Pipeline results (regenerable)
-pipeline_results/
+# pipeline_results/
 
 # OS files
 .DS_Store
